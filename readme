@@ -1,0 +1,17 @@
+yamer.zshrc
+
+This is my personal zshrc with some shit I came up with over the 15 years I used it
+
+Highlights are:
+
+cpv and mvv:
+Shell Functions which recursively copy/move directories with pv so progress is displayed. Synced writes arent implemented rn but will do it sometimes
+Usage: "cpv/mvv SOURCE DESTINATION"
+
+paste and paste-file:
+allows directly pushing shit to a paste service (0x0.st in this case)
+Usage: For paste just pipe output into it like "example-command | paste" and for paste-file: "paste-file example-file"
+
+The rest is mostly opinionated configuration, suggestions are welcome but may or may not be ignored
+
+-Yama
