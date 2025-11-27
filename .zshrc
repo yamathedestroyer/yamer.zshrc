@@ -22,9 +22,9 @@ HISTFILE="$HOME/.cache/.zsh_history"
 alias la='ls -Ah'
 alias ll='ls -lAh'
 alias grep='grep --color=auto'
-alias mirror-update='sudo reflector --verbose --score 100 -l 50 -f 10 --sort rate --save /etc/pacman.d/mirrorlist'
+#alias mirror-update='sudo reflector --verbose --score 100 -l 50 -f 10 --sort rate --save /etc/pacman.d/mirrorlist'
 alias neofetch='fastfetch'
-alias wipe-cache='sudo pacman -Scc'
+#alias wipe-cache='sudo pacman -Scc'
 
 cpv() {
     if [ $# -ne 2 ]; then
@@ -140,159 +140,6 @@ mvv() {
     fi
 }
 
-dv() {
-    if [ $# -eq 0 ]; then
-        echo -e "\033[1;31mUsage: dv [dd arguments...]\033[0m"
-        echo -e "\033[1;34mExamples:\033[0m"
-        echo -e "  dv if=/dev/sda of=backup.img bs=1M"
-        echo -e "  dv if=file.iso of=/dev/sdb bs=4M status=progress"
-        return 1
-    fi
-
-    local input_file=""
-    local output_file=""
-    local block_size=""
-    local count=""
-    local dd_args=()
-    local pv_args=()
-    local total_size=0
-
-    for arg in "$@"; do
-        case "$arg" in
-            if=*)
-                input_file="${arg#if=}"
-                ;;
-            of=*)
-                output_file="${arg#of=}"
-                dd_args+=("$arg")
-                ;;
-            bs=*)
-                block_size="${arg#bs=}"
-                dd_args+=("$arg")
-                ;;
-            count=*)
-                count="${arg#count=}"
-                dd_args+=("$arg")
-                ;;
-            status=progress)
-                echo -e "\033[1;33mWarning:\033[0m Ignoring status=progress, using pv instead"
-                ;;
-            status=*)
-                dd_args+=("$arg")
-                ;;
-            *)
-                dd_args+=("$arg")
-                ;;
-        esac
-    done
-
-    if [ -n "$input_file" ] && [ "$input_file" != "/dev/zero" ] && [ "$input_file" != "/dev/random" ] && [ "$input_file" != "/dev/urandom" ] && [[ ! "$input_file" =~ ^/dev/ ]]; then
-        if [ ! -e "$input_file" ]; then
-            echo -e "\033[1;31mError: Input file '$input_file' does not exist\033[0m"
-            return 1
-        fi
-        if [ ! -r "$input_file" ]; then
-            echo -e "\033[1;31mError: Input file '$input_file' is not readable\033[0m"
-            return 1
-        fi
-    fi
-
-    if [ -n "$output_file" ] && [[ ! "$output_file" =~ ^/dev/ ]]; then
-        local output_dir=$(dirname "$output_file")
-        if [ ! -d "$output_dir" ]; then
-            echo -e "\033[1;31mError: Output directory '$output_dir' does not exist\033[0m"
-            return 1
-        fi
-        if [ ! -w "$output_dir" ]; then
-            echo -e "\033[1;31mError: Output directory '$output_dir' is not writable\033[0m"
-            return 1
-        fi
-    fi
-
-    trap 'echo -e "\n\033[1;31mOperation cancelled by user!\033[0m"; return 1' INT
-
-    echo -e "\033[1;34m::\033[0m Analyzing operation..."
-
-    if [ -n "$count" ] && [ -n "$block_size" ]; then
-        local bs_bytes=$(numfmt --from=iec "$block_size" 2>/dev/null || echo "$block_size")
-        if [[ "$bs_bytes" =~ ^[0-9]+$ ]]; then
-            total_size=$((count * bs_bytes))
-            pv_args+=("--size" "$total_size")
-        fi
-    elif [ -n "$input_file" ] && [ -f "$input_file" ]; then
-        total_size=$(stat -c%s "$input_file" 2>/dev/null || echo 0)
-        if [ "$total_size" -gt 0 ]; then
-            pv_args+=("--size" "$total_size")
-        fi
-    elif [ -n "$input_file" ] && [[ "$input_file" =~ ^/dev/ ]] && [ -b "$input_file" ]; then
-        local dev_size=$(lsblk -b -n -o SIZE "$input_file" 2>/dev/null | head -n1 | tr -d ' ')
-        if [[ "$dev_size" =~ ^[0-9]+$ ]] && [ "$dev_size" -gt 0 ]; then
-            total_size="$dev_size"
-            if [ -n "$count" ] && [ -n "$block_size" ]; then
-                local bs_bytes=$(numfmt --from=iec "$block_size" 2>/dev/null || echo "$block_size")
-                if [[ "$bs_bytes" =~ ^[0-9]+$ ]]; then
-                    total_size=$((count * bs_bytes))
-                fi
-            fi
-            pv_args+=("--size" "$total_size")
-        fi
-    fi
-
-    pv_args+=("--progress" "--timer" "--eta" "--rate" "--bytes")
-
-    echo -e "\033[1;32m==>\033[0m \033[1mStarting dd operation:\033[0m"
-    if [ -n "$input_file" ]; then
-        echo -e "\033[1;34m::\033[0m Input:  \033[1;36m$input_file\033[0m"
-    fi
-    if [ -n "$output_file" ]; then
-        echo -e "\033[1;34m::\033[0m Output: \033[1;36m$output_file\033[0m"
-    fi
-    if [ -n "$block_size" ]; then
-        echo -e "\033[1;34m::\033[0m Block size: \033[1;36m$block_size\033[0m"
-    fi
-    if [ -n "$count" ]; then
-        echo -e "\033[1;34m::\033[0m Count: \033[1;36m$count\033[0m blocks"
-    fi
-    if [ "$total_size" -gt 0 ]; then
-        echo -e "\033[1;34m::\033[0m Total size: \033[1;36m$(numfmt --to=iec-i --suffix=B $total_size)\033[0m"
-    fi
-    echo ""
-
-    local start_time=$(date +%s)
-    local result=0
-
-    if [ -n "$input_file" ]; then
-        if [ "${#pv_args[@]}" -gt 5 ]; then
-            pv "${pv_args[@]}" < "$input_file" | dd "${dd_args[@]}" 2>/dev/null
-        else
-            pv --progress --timer --rate --bytes < "$input_file" | dd "${dd_args[@]}" 2>/dev/null
-        fi
-        result=${PIPESTATUS[1]}
-    else
-        dd "${dd_args[@]}" 2>&1 | pv -l >/dev/null
-        result=${PIPESTATUS[0]}
-    fi
-
-    local end_time=$(date +%s)
-    local elapsed=$((end_time - start_time))
-
-    trap - INT
-
-    if [ $result -eq 0 ]; then
-        echo ""
-        echo -e "\033[1;32m==>\033[0m \033[1mOperation completed successfully!\033[0m"
-        if [ $elapsed -gt 0 ] && [ "$total_size" -gt 0 ]; then
-            local avg_speed=$((total_size / elapsed))
-            echo -e "\033[1;34m::\033[0m Time elapsed: \033[1;33m$(date -d "@$elapsed" -u +%H:%M:%S)\033[0m"
-            echo -e "\033[1;34m::\033[0m Average speed: \033[1;33m$(numfmt --to=iec-i --suffix=B/s $avg_speed)\033[0m"
-        fi
-    else
-        echo ""
-        echo -e "\033[1;31mOperation failed with exit code $result\033[0m"
-    fi
-
-    return $result
-}
 
 function paste() {
   curl -F 'file=@-' 0x0.st
@@ -465,9 +312,7 @@ bindkey '^H' backward-kill-word
 
 # initialize completion
 compinit -u -d "$compfile"
-compdef dv=dd
 
-export PATH=$PATH:/home/yama/.local/bin
 
 # initialize prompt with a decent built-in theme
 promptinit
