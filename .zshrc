@@ -12,6 +12,14 @@ else
 	mkdir -p "$comppath"
 fi
 
+autoload -U compinit     # completion
+autoload -U terminfo     # terminfo keys
+zmodload -i zsh/complist # menu completion
+autoload -U promptinit   # prompt
+
+# initialize completion
+compinit -u -d "$compfile"
+
 # zsh internal stuff
 SHELL=$(which zsh || echo '/bin/zsh')
 KEYTIMEOUT=1
@@ -251,12 +259,6 @@ setopt EXTENDED_GLOB
 setopt TRANSIENT_RPROMPT
 setopt INTERACTIVE_COMMENTS
 
-
-autoload -U compinit     # completion
-autoload -U terminfo     # terminfo keys
-zmodload -i zsh/complist # menu completion
-autoload -U promptinit   # prompt
-
 # better history navigation, matching currently typed text
 autoload -U up-line-or-beginning-search; zle -N up-line-or-beginning-search
 autoload -U down-line-or-beginning-search; zle -N down-line-or-beginning-search
@@ -348,10 +350,6 @@ bindkey '^[[1;5D' backward-word
 bindkey '^[[1;5C' forward-word
 bindkey '^[[3;5~' kill-word
 bindkey '^H' backward-kill-word
-
-# initialize completion
-compinit -u -d "$compfile"
-
 
 # initialize prompt with a decent built-in theme
 promptinit
