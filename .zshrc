@@ -26,6 +26,45 @@ alias grep='grep --color=auto'
 alias neofetch='fastfetch'
 #alias wipe-cache='sudo pacman -Scc'
 
+# dd via pv wrapper
+dv() {
+    if [[ $# -eq 0 ]]; then
+        echo -e "\033[1;31mUsage: dv dd-arguments\033[0m"
+        echo -e "\033[1;34m::\033[0m Example: dv if=/dev/zero of=/tmp/out.img bs=4M"
+        return 1
+    fi
+
+    local -a dd_in_opts=()
+    local -a dd_out_opts=()
+    local -a dd_shared_opts=()
+
+    for arg in "$@"; do
+        case "$arg" in
+            status=*)
+                # pv will show the transfer stats, ignore dd's status flag
+                ;;
+            if=*|iflag=*|ibs=*|skip=*|iseek=*|infd=*)
+                dd_in_opts+=("$arg")
+                ;;
+            of=*|oflag=*|obs=*|seek=*|oseek=*|outfd=*|conv=*)
+                dd_out_opts+=("$arg")
+                ;;
+            bs=*|cbs=*|count=*|files=*)
+                dd_shared_opts+=("$arg")
+                ;;
+            *)
+                dd_shared_opts+=("$arg")
+                ;;
+        esac
+    done
+
+    local dd_in=(dd status=none "${dd_shared_opts[@]}" "${dd_in_opts[@]}")
+    local dd_out=(dd status=none "${dd_shared_opts[@]}" "${dd_out_opts[@]}")
+
+    "${dd_in[@]}" | pv | "${dd_out[@]}"
+}
+compdef _dd dv
+
 cpv() {
     if [ $# -ne 2 ]; then
         echo -e "\033[1;31mUsage: cpv source destination\033[0m"
